@@ -1,0 +1,115 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Calculadora Shopee – Vendedor CPF</title>
+<style>
+  body{font-family:system-ui,Arial,sans-serif;background:#fff5f2;margin:0;padding:16px;color:#222}
+  .card{max-width:420px;margin:auto;background:#fff;border-radius:14px;padding:20px;box-shadow:0 2px 10px rgba(0,0,0,.08)}
+  h1{color:#ee4d2d;font-size:1.3rem;margin:0 0 4px}
+  small{color:#666}
+  label{display:block;margin-top:14px;font-weight:600}
+  input[type=number]{width:100%;box-sizing:border-box;padding:12px;font-size:1.2rem;border:2px solid #ddd;border-radius:10px;margin-top:6px}
+  input[type=number]:focus{border-color:#ee4d2d;outline:none}
+  .chk{display:flex;gap:8px;align-items:flex-start;margin-top:14px;font-weight:400}
+  .res{margin-top:18px;border-top:1px dashed #ccc;padding-top:12px}
+  .linha{display:flex;justify-content:space-between;padding:6px 0}
+  .total{font-weight:700;border-top:1px solid #eee}
+  .liq{font-size:1.4rem;font-weight:800;color:#0a8a3a}
+  .neg{color:#c62828}
+  .aviso{background:#fff8e1;border-left:4px solid #f9a825;padding:8px 10px;margin-top:10px;font-size:.85rem;border-radius:6px}
+  .rodape{font-size:.75rem;color:#777;margin-top:14px}
+</style>
+</head>
+<body>
+<div class="card">
+  <h1>🧡 Quanto eu ganho na Shopee?</h1>
+  <small>Vendedor CPF · regras de nov/2026</small>
+
+  <label>Preço de venda do anúncio (R$)
+    <input type="number" id="preco" min="0" step="0.01" placeholder="Ex: 49,90" inputmode="decimal">
+  </label>
+
+  <label>Custo do produto (R$) <small>(opcional)</small>
+    <input type="number" id="custo" min="0" step="0.01" placeholder="Ex: 20,00" inputmode="decimal">
+  </label>
+
+  <label class="chk"><input type="checkbox" id="alto">
+    Minha loja passou de 450 pedidos nos últimos 90 dias (+R$ 3 por item)</label>
+
+  <label>Taxa de campanha (%) <small>(só se estiver em Campanha de Destaque)</small>
+    <input type="number" id="camp" min="0" step="0.1" value="0" inputmode="decimal">
+  </label>
+
+  <div class="res" id="res"></div>
+
+  <div class="rodape">
+    Regras: até R$ 79,99 → 20% + R$ 4,50 (abaixo de R$ 9: 20% + metade do preço) ·
+    R$ 80–99,99 → 14% + R$ 16 · R$ 100–199,99 → 14% + R$ 20 · R$ 200+ → 14% + R$ 26.
+    Fonte: Central do Vendedor Shopee. As taxas podem mudar, confira sempre na Central do Vendedor.
+  </div>
+</div>
+
+<script>
+const brl = v => v.toLocaleString('pt-BR',{style:'currency',currency:'BRL'});
+const r2  = v => Math.round(v*100)/100;
+
+function calcular(){
+  const preco = parseFloat(document.getElementById('preco').value);
+  const custo = parseFloat(document.getElementById('custo').value);
+  const alto  = document.getElementById('alto').checked;
+  const camp  = parseFloat(document.getElementById('camp').value) || 0;
+  const out   = document.getElementById('res');
+
+  if(!preco || preco <= 0){ out.innerHTML = '<small>Digite o preço para calcular.</small>'; return; }
+
+  let pct, fixa;
+  if (preco < 80) {
+    pct  = 0.20;
+    fixa = preco < 9 ? preco / 2 : 4.50;
+  } else if (preco < 100) { pct = 0.14; fixa = 16; }
+  else if (preco < 200)   { pct = 0.14; fixa = 20; }
+  else                    { pct = 0.14; fixa = 26; }
+
+  const comissao = r2(preco * pct);
+  fixa = r2(fixa);
+  const adicCPF  = alto ? 3 : 0;
+  const taxaCamp = r2(preco * camp / 100);
+  const total    = r2(comissao + fixa + adicCPF + taxaCamp);
+  const liquido  = r2(preco - total);
+
+  let html = `
+    <div class="linha"><span>Comissão (${pct*100}%)</span><span>− ${brl(comissao)}</span></div>
+    <div class="linha"><span>Taxa fixa por item</span><span>− ${brl(fixa)}</span></div>`;
+  if (alto) html += `<div class="linha"><span>Adicional CPF (+450 pedidos)</span><span>− ${brl(adicCPF)}</span></div>`;
+  if (camp > 0) html += `<div class="linha"><span>Taxa de campanha (${camp}%)</span><span>− ${brl(taxaCamp)}</span></div>`;
+  html += `
+    <div class="linha total"><span>Total de taxas (${(total/preco*100).toFixed(1).replace('.',',')}%)</span><span>− ${brl(total)}</span></div>
+    <div class="linha"><span><b>Você recebe</b></span><span class="liq ${liquido<0?'neg':''}">${brl(liquido)}</span></div>`;
+
+  if (!isNaN(custo) && custo > 0) {
+    const lucro = r2(liquido - custo);
+    const marg  = (lucro / preco * 100).toFixed(1).replace('.',',');
+    html += `<div class="linha"><span>Lucro (−custo ${brl(custo)})</span>
+             <span class="liq ${lucro<0?'neg':''}">${brl(lucro)} (${marg}%)</span></div>`;
+  }
+
+  if (preco >= 80 && preco < 88)
+    html += `<div class="aviso">⚠️ Entre R$ 80 e ~R$ 87,80 você recebe <b>menos</b> do que vendendo a R$ 79,99, porque a taxa fixa pula de R$ 4,50 para R$ 16.</div>`;
+  if (preco >= 100 && preco < 104.7)
+    html += `<div class="aviso">⚠️ Logo acima de R$ 100 a taxa fixa sobe para R$ 20. Compare com R$ 99,99.</div>`;
+  if (preco >= 200 && preco < 207)
+    html += `<div class="aviso">⚠️ Logo acima de R$ 200 a taxa fixa sobe para R$ 26. Compare com R$ 199,99.</div>`;
+  if (alto && preco < 12)
+    html += `<div class="aviso">ℹ️ Para CPF com +450 pedidos e produto abaixo de R$ 12, a Shopee aplica uma taxa regressiva (menor) cujo valor exato não é publicado. Aqui somamos os R$ 3 inteiros, então o valor real pode ser um pouco melhor.</div>`;
+  html += `<div class="aviso">Não inclui frete extra por peso errado, Shopee Ads, devoluções nem impostos. O desconto Pix (5% a 8% acima de R$ 80) é pago pela Shopee e não muda o seu valor.</div>`;
+
+  out.innerHTML = html;
+}
+['preco','custo','alto','camp'].forEach(id =>
+  document.getElementById(id).addEventListener('input', calcular));
+calcular();
+</script>
+</body>
+</html>
